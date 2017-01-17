@@ -1,0 +1,232 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="initial-scale=1.0,user-scalable=no">
+    <style type="text/css">
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        
+        html {
+            height: 100%;
+        }
+        
+        body {
+            height: 100%;
+            margin: 0px;
+            padding: 0px;
+            overflow-y: hidden;
+            overflow-x: hidden;
+        }
+        
+        #map {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 10;
+        }
+        
+        #container {
+            opacity: 12.2;
+            z-index: 11;
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+        
+        #dragDiv {
+            position: absolute;
+            right: 0;
+            width: 8px;
+            height: 100%;
+            background-color: red;
+            cursor: w-resize;
+            z-index: 11;
+        }
+        
+        #mapOne {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            top: 0;
+            bottom: 0;
+            z-index: 10;
+        }
+    </style>
+    <!--将下载的三个文件导入此页面-->
+    <!--导入两个css文件-->
+    <link href="jsApi/newmap.ie.css" rel="stylesheet" />
+    <link href="jsApi/newmap.css" rel="stylesheet" />
+    <!--NewMap js api引用-->
+    <script src="jsApi/NewMap.js"></script>
+    <script src="jquery/jquery-1.11.1.min.js"></script>
+    <script type="text/javascript">
+        var vecmap, imgmap;
+        var resolutions = [
+            0.3515625,
+            0.17578125,
+            0.087890625,
+            0.0439453125,
+            0.02197265625,
+            0.010986328125,
+            0.0054931640625,
+            0.00274658203125,
+            0.001373291015625,
+            0.0006866455078125,
+            0.00034332275390625,
+            0.000171661376953125,
+            0.0000858306884765625,
+            0.00004291534423828125,
+            0.00002145767211914062,
+            0.00001072883605957031,
+            0.000005364418029785155
+        ];
+        var aResolutionIndexs = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+        var extent = new NBounds(-180, -90, 180, 90);
+        var tileSize = new NXY(256, 256);
+        var tileOrigin = new NXY(-180, 90);
+
+        function mapInit() {
+            // 创建地图实例
+            vecmap = new NMap("mapOne");
+            imgmap = new NMap("map");
+
+            var vecUrlStr_vec = "http://t0.tianditu.com/vec_c/wmts";
+            var vecLayer = creatWMTSLayer("tianditu-vector", vecUrlStr_vec, "vec", true, true);
+
+            var vecUrlStr_vec_anno = "http://t0.tianditu.com/cva_c/wmts";
+            var vecLayer_anno = creatWMTSLayer("tianditu-vector_anno", vecUrlStr_vec_anno, "cva", false, true);
+
+            var vecUrlStr_img = "http://t7.tianditu.cn/img_c/wmts";
+            var imgLayer = creatWMTSLayer("tianditu-img", vecUrlStr_img, "img", true, true);
+
+            var vecUrlStr_img_anno = "http://t1.tianditu.cn/cia_c/wmts";
+            var imgLayer_anno = creatWMTSLayer("tianditu-img_anno", vecUrlStr_img_anno, "cia", false, true);
+
+
+
+            vecmap.addLayer(vecLayer); //地图加载矢量图层
+            vecmap.addLayer(vecLayer_anno); //地图加载矢量标注图层
+            imgmap.addLayer(imgLayer); //地图加载影像图层
+            imgmap.addLayer(imgLayer_anno); //地图加载影响标注图层
+
+            vecmap.addControl(new NPanZoomBarControl()); //级别导航
+            vecmap.addControl(new NScaleControl()); //比例尺
+            imgmap.addControl(new NPanZoomBarControl()); //级别导航
+            imgmap.addControl(new NScaleControl()); //比例尺
+            imgmap.addControl(new NPositionControl()); //鼠标处坐标
+
+
+            vecmap.moveTo(new NXY(116.3922, 39.9100), 13); //设置地图中心点和缩放级别
+            vecmap.setMode("dragzoom"); //设置地图可以缩放平移
+            imgmap.moveTo(new NXY(116.3922, 39.9100), 13); //设置地图中心点和缩放级别
+            imgmap.setMode("dragzoom"); //设置地图可以缩放平移
+
+            startListener();
+
+        }
+
+        function creatWMTSLayer(label, url, layer, isBasiclayer, visible) {
+            var lyrOptions = {
+                projection: "EPSG:4490",
+                maxExtent: extent,
+                resolutions: resolutions, //分辨率
+                tileSize: tileSize,
+                tileOrigin: tileOrigin,
+                format: "tiles",
+                layer: layer,
+                style: "default",
+                tileMatrixSet: "c",
+                serviceMode: "KVP",
+                isBasicLayer: isBasiclayer,
+                visible: visible
+            };
+            var wmtsLayer = new NWMTSLayer(label, url, lyrOptions);
+            wmtsLayer.serverResolutions = {};
+            for (var idx = 0; idx < aResolutionIndexs.length; idx++) {
+                var key = aResolutionIndexs[idx] + "",
+                    val = parseFloat(resolutions[idx]);
+                wmtsLayer.serverResolutions[key] = val;
+            }
+            return wmtsLayer;
+        }
+
+        function startListener() {
+            $(document).on("mousedown", drag);
+            $(document).on("mousemove", drag);
+            $(document).on("mouseup", drag);
+            $("#container").css("width", "50%");
+            SplitMove();
+        }
+
+        var mousedown = false;
+
+        function drag(event) { //事件执行函数
+            switch (event.type) { //判断事件类型
+                case "mousedown":
+                    if (event.target.id === "dragDiv") {
+                        mousedown = true;
+                    }
+                    break;
+                case "mousemove":
+                    if (mousedown) {
+                        var x = event.clientX,
+                            y = event.clientY;
+                        $("#dragDiv").css("left", x + "px");
+                        $("#container").css("width", x + "px");
+                    }
+                    break;
+                case "mouseup":
+                    // 清空拖动目标
+                    mousedown = false;
+                    break;
+            }
+        };
+
+        function SplitMove() {
+            var map = [vecmap, imgmap];
+
+            for (var i = 0; i < map.length; i++) {
+                map[i].off('moveend', move);
+            }
+
+            var move = function(e) {
+                try {
+                    if (e.target) {
+                        var xy = e.target.getCenter();
+                        var zoom = e.target.getZoom();
+                        for (var i = 0; i < map.length; i++) {
+                            if (e.target == map[i]) {
+                                continue;
+                            }
+                            map[i].moveTo(new NXY(xy.x, xy.y), zoom);
+                        }
+                    }
+                } catch (ex) {
+
+                }
+            }
+
+            for (var i = 0; i < map.length; i++) {
+                map[i].on("moveend", move);
+            }
+        }
+    </script>
+</head>
+
+<body onload="mapInit()">
+    <div id="map"></div>
+    <div id="container">
+        <div id="dragDiv"></div>
+        <div id="mapOne"></div>
+    </div>
+</body>
+
+</html>

@@ -98,16 +98,16 @@
             vecmap = new NMap("mapOne");
             imgmap = new NMap("map");
 
-            var vecUrlStr_vec = "http://t0.tianditu.com/vec_c/wmts";
+            var vecUrlStr_vec = "http://t0.tianditu.gov.cn/vec_c/wmts?&tk=174705aebfe31b79b3587279e211cb9a";
             var vecLayer = creatWMTSLayer("tianditu-vector", vecUrlStr_vec, "vec", true, true);
 
-            var vecUrlStr_vec_anno = "http://t0.tianditu.com/cva_c/wmts";
+            var vecUrlStr_vec_anno = "http://t0.tianditu.gov.cn/cva_c/wmts?&tk=174705aebfe31b79b3587279e211cb9a";
             var vecLayer_anno = creatWMTSLayer("tianditu-vector_anno", vecUrlStr_vec_anno, "cva", false, true);
 
-            var vecUrlStr_img = "http://t7.tianditu.cn/img_c/wmts";
+            var vecUrlStr_img = "http://t7.tianditu.gov.cn/img_c/wmts?&tk=174705aebfe31b79b3587279e211cb9a";
             var imgLayer = creatWMTSLayer("tianditu-img", vecUrlStr_img, "img", true, true);
 
-            var vecUrlStr_img_anno = "http://t1.tianditu.cn/cia_c/wmts";
+            var vecUrlStr_img_anno = "http://t1.tianditu.gov.cn/cia_c/wmts?&tk=174705aebfe31b79b3587279e211cb9a";
             var imgLayer_anno = creatWMTSLayer("tianditu-img_anno", vecUrlStr_img_anno, "cia", false, true);
 
 
@@ -130,6 +130,10 @@
             imgmap.setMode("dragzoom"); //设置地图可以缩放平移
 
             startListener();
+
+            vecmap.on("movestart", function() {
+                console.log('aaa')
+            });
 
         }
 
@@ -189,6 +193,8 @@
                     break;
             }
         };
+
+
 
         function SplitMove() {
             var map = [vecmap, imgmap];
